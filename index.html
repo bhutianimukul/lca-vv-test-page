@@ -26,6 +26,8 @@
   // Modes (query string):
   //   ?mode=happy                       menu opens, nothing else changes
   //   ?mode=moved&after=1500            a tooltip portal sits before the menu; removed `after` ms after open
+  //   ?mode=afterRobust                 a tooltip portal sits before the menu; removed the moment LCA reports that robust
+  //                                     found the element (LCA sets window.__domSnapshotCache right after a robust success)
   //   ?mode=churn                       a toast portal before the menu is removed/re-added every 700 ms
   //   ?mode=recreate&after=1500         the menu node is replaced by a fresh copy `after` ms after open
   //   ?mode=closed&after=1500           the menu is removed (closed) `after` ms after open
@@ -43,6 +45,18 @@
   const make = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; };
   const closeMenu = () => document.querySelectorAll('.portal').forEach((p) => p.remove());
 
+  if (mode === 'afterRobust') {
+    let cache;
+    Object.defineProperty(window, '__domSnapshotCache', {
+      configurable: true,
+      get: () => cache,
+      set: (v) => {
+        cache = v;
+        if (document.querySelector('.portal')) document.querySelector('.tooltip')?.remove();
+      }
+    });
+  }
+
   document.addEventListener('click', (e) => {
     const li = e.target.closest('li[role="menuitem"]');
     if (li) { status.textContent = `Clicked: ${li.textContent}`; closeMenu(); }
@@ -50,7 +64,7 @@
 
   document.getElementById('dots').addEventListener('click', () => {
     closeMenu();
-    if (mode === 'moved' || mode === 'churn') document.body.appendChild(make('<div class="tooltip" role="tooltip">More actions</div>'));
+    if (mode === 'moved' || mode === 'churn' || mode === 'afterRobust') document.body.appendChild(make('<div class="tooltip" role="tooltip">More actions</div>'));
     const portal = make(menuHtml());
     document.body.appendChild(portal);
 
