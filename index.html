@@ -31,16 +31,19 @@
   //   ?mode=churn                       a toast portal before the menu is removed/re-added every 700 ms
   //   ?mode=recreate&after=1500         the menu node is replaced by a fresh copy `after` ms after open
   //   ?mode=closed&after=1500           the menu is removed (closed) `after` ms after open
+  //   &vary=1                           (any mode) menu innerText differs from recording by invisible zero-width spaces, so
+  //                                     robust's recorded selectors miss the 100% match and it returns a positional nth-child path
   //   &autoclose=15000                  (any mode) the page closes the menu itself after N ms, like a list refresh
   const q = new URLSearchParams(location.search);
   const mode = q.get('mode') || 'happy';
   const after = Number(q.get('after') || 1500);
   const autoclose = Number(q.get('autoclose') || 0);
+  const vary = q.get('vary') === '1' ? '\u200b'.repeat(1 + Math.floor(Math.random() * 5)) : '';
   const status = document.getElementById('status');
 
   const menuHtml = () => `<div class="portal" role="presentation"><div class="backdrop"></div><div tabindex="0"></div>
     <div class="paper"><ul role="menu" class="menu-list">
-      <li role="menuitem">Resend Invite</li><li role="menuitem">Running Late</li><li role="menuitem">Cancel visit</li>
+      <li role="menuitem">Resend Invite</li><li role="menuitem">Running Late</li><li role="menuitem">Cancel visit${vary}</li>
     </ul></div></div>`;
   const make = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; };
   const closeMenu = () => document.querySelectorAll('.portal').forEach((p) => p.remove());
