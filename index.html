@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>LCA visual check: DOM-change cases</title>
+<style>
+  body { font-family: sans-serif; margin: 40px; }
+  .row { display: flex; gap: 16px; align-items: center; border: 1px solid #ccc; padding: 12px; width: 420px; }
+  #dots { font-size: 22px; cursor: pointer; border: 1px solid #888; background: #fff; width: 40px; }
+  .portal { position: fixed; inset: 0; }
+  .backdrop { position: fixed; inset: 0; }
+  .paper { position: absolute; top: 120px; left: 300px; background: #fff; border: 1px solid #555; box-shadow: 0 2px 8px #0003; }
+  .paper ul { list-style: none; margin: 0; padding: 4px 0; }
+  .paper li { padding: 8px 20px; cursor: pointer; }
+  .paper li:hover { background: #eef; }
+  .tooltip { position: absolute; top: 80px; left: 300px; background: #333; color: #fff; padding: 4px 8px; font-size: 12px; }
+  #status { margin-top: 24px; font-weight: bold; }
+</style>
+</head>
+<body>
+<h3>Visit list</h3>
+<div class="row"><span>PATIENT-0001</span><span>Checked in</span><button id="dots" aria-label="More actions">⋯</button></div>
+<div id="status">Nothing clicked</div>
+
+<script>
+  // Modes (query string):
+  //   ?mode=happy                       menu opens, nothing else changes
+  //   ?mode=moved&after=1500            a tooltip portal sits before the menu; removed `after` ms after open
+  //   ?mode=churn                       a toast portal before the menu is removed/re-added every 700 ms
+  //   ?mode=recreate&after=1500         the menu node is replaced by a fresh copy `after` ms after open
+  //   ?mode=closed&after=1500           the menu is removed (closed) `after` ms after open
+  //   &autoclose=15000                  (any mode) the page closes the menu itself after N ms, like a list refresh
+  const q = new URLSearchParams(location.search);
+  const mode = q.get('mode') || 'happy';
+  const after = Number(q.get('after') || 1500);
+  const autoclose = Number(q.get('autoclose') || 0);
+  const status = document.getElementById('status');
+
+  const menuHtml = () => `<div class="portal" role="presentation"><div class="backdrop"></div><div tabindex="0"></div>
+    <div class="paper"><ul role="menu" class="menu-list">
+      <li role="menuitem">Resend Invite</li><li role="menuitem">Running Late</li><li role="menuitem">Cancel visit</li>
+    </ul></div></div>`;
+  const make = (html) => { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; };
+  const closeMenu = () => document.querySelectorAll('.portal').forEach((p) => p.remove());
+
+  document.addEventListener('click', (e) => {
+    const li = e.target.closest('li[role="menuitem"]');
+    if (li) { status.textContent = `Clicked: ${li.textContent}`; closeMenu(); }
+  });
+
+  document.getElementById('dots').addEventListener('click', () => {
+    closeMenu();
+    if (mode === 'moved' || mode === 'churn') document.body.appendChild(make('<div class="tooltip" role="tooltip">More actions</div>'));
+    const portal = make(menuHtml());
+    document.body.appendChild(portal);
+
+    if (mode === 'moved') setTimeout(() => document.querySelector('.tooltip')?.remove(), after);
+    if (mode === 'churn') {
+      const id = setInterval(() => {
+        const tip = document.querySelector('.tooltip');
+        if (!document.querySelector('.portal')) return clearInterval(id);
+        if (tip) tip.remove(); else document.body.insertBefore(make('<div class="tooltip" role="tooltip">More actions</div>'), document.querySelector('.portal'));
+      }, 700);
+    }
+    if (mode === 'recreate') setTimeout(() => { const p = document.querySelector('.portal'); p?.replaceWith(make(menuHtml())); }, after);
+    if (mode === 'closed') setTimeout(closeMenu, after);
+    if (autoclose) setTimeout(closeMenu, autoclose);
+  });
+</script>
+</body>
+</html>
